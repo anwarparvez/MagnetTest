@@ -59,15 +59,13 @@ public class MagnetTestActivity extends Activity {
 
 		});
 
-		
-
 		setContentView(R.layout.activity_magnet_test);
 		Button button = (Button) findViewById(R.id.button1);
 		button.setOnClickListener(new View.OnClickListener() {
 
 			@Override
 			public void onClick(View arg0) {
-				channelInst = mMagnet.joinChannel(MagnetManager.PUBLIC_CHANNEL,
+				channelInst = mMagnet.joinChannel("com.samsung.test.TEST_CHANNEL",
 						new IMagnetChannelListener() {
 
 							@Override
@@ -83,83 +81,114 @@ public class MagnetTestActivity extends Activity {
 							}
 
 							@Override
-							public void onFileWillReceive(String arg0, String arg1,
-									String arg2, String arg3, String arg4, String arg5,
-									long arg6) {
+							public void onFileWillReceive(String arg0,
+									String arg1, String arg2, String arg3,
+									String arg4, String arg5, long arg6) {
 								// TODO Auto-generated method stub
 
 							}
 
 							@Override
 							public void onFileSent(String arg0, String arg1,
-									String arg2, String arg3, String arg4, String arg5) {
+									String arg2, String arg3, String arg4,
+									String arg5) {
 								// TODO Auto-generated method stub
 
 							}
 
 							@Override
-							public void onFileReceived(String arg0, String arg1,
-									String arg2, String arg3, String arg4, String arg5,
-									long arg6, String arg7) {
+							public void onFileReceived(String arg0,
+									String arg1, String arg2, String arg3,
+									String arg4, String arg5, long arg6,
+									String arg7) {
 								// TODO Auto-generated method stub
 
 							}
 
 							@Override
 							public void onFileFailed(String arg0, String arg1,
-									String arg2, String arg3, String arg4, int arg5) {
+									String arg2, String arg3, String arg4,
+									int arg5) {
 								// TODO Auto-generated method stub
 
 							}
 
 							@Override
-							public void onFileChunkSent(String arg0, String arg1,
-									String arg2, String arg3, String arg4, String arg5,
-									long arg6, long arg7, long arg8) {
+							public void onFileChunkSent(String arg0,
+									String arg1, String arg2, String arg3,
+									String arg4, String arg5, long arg6,
+									long arg7, long arg8) {
 								// TODO Auto-generated method stub
 
 							}
 
 							@Override
-							public void onFileChunkReceived(String arg0, String arg1,
-									String arg2, String arg3, String arg4, String arg5,
-									long arg6, long arg7) {
+							public void onFileChunkReceived(String arg0,
+									String arg1, String arg2, String arg3,
+									String arg4, String arg5, long arg6,
+									long arg7) {
 								// TODO Auto-generated method stub
 
 							}
 
 							@Override
-							public void onDataReceived(String arg0, String arg1,
-									String arg2, byte[][] arg3) {
+							public void onDataReceived(String arg0,
+									String arg1, String arg2, byte[][] data) {
+								for(byte [] value:data)
+								{
+									String string=new String(value);
+									
+									Toast.makeText(getApplicationContext(),
+											"Node data: " + string + " ",
+											Toast.LENGTH_LONG).show();
+								}
 								// TODO Auto-generated method stub
 
 							}
 						});
-				// #1. SEND QUIZ
-				/*
-				 * byte [][] payload=new byte[2][]; payload[0] =
-				 * "James".getBytes(); // Sender’s friendly name payload[1] =
-				 * "What is GNU".getBytes(); // Quiz
-				 * channelInst.sendDataToAll("com.samsung.test.TEST_CHANNEL",
-				 * payload);
-				 */
+
+
+
+			}
+		});
+
+		Button sendButton = (Button) findViewById(R.id.button2);
+		sendButton.setOnClickListener(new View.OnClickListener() {
+
+			@Override
+			public void onClick(View v) {
+				
 				if (channelInst != null) {
 					List<String> nodeList = channelInst.getJoinedNodeList();
 					if (nodeList != null) {
-						Toast.makeText(getApplicationContext(),
-								"onStarted" + nodeList.size() + " ",
-								Toast.LENGTH_LONG).show();
+						String allNodeName="";
+						for(String name:nodeList)
+						{
+							Toast.makeText(getApplicationContext(),
+									"Node Name: " + name + " ",
+									Toast.LENGTH_LONG).show();
+						}
+			
 					} else {
 						Toast.makeText(getApplicationContext(),
 								"nodeList==null  ", Toast.LENGTH_LONG).show();
 					}
 				} else {
-					Toast.makeText(getApplicationContext(), "channelInst==null  ",
-							Toast.LENGTH_LONG).show();
+					Toast.makeText(getApplicationContext(),
+							"channelInst==null  ", Toast.LENGTH_LONG).show();
 				}
+				// #1. SEND QUIZ
+				
+				  byte [][] payload=new byte[2][]; 
+				  payload[0] = "James".getBytes(); // Sender’s friendly name 
+				  payload[1] = "What is GNU".getBytes(); // Quiz
+				  channelInst.sendDataToAll("com.samsung.test.TEST_CHANNEL", payload);
+				 
+				// TODO Auto-generated method stub
 
 			}
 		});
+
 	}
 
 	@Override
