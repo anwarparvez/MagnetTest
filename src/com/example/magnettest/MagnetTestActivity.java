@@ -1,5 +1,6 @@
 package com.example.magnettest;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import com.samsung.magnet.IMagnetChannel;
@@ -9,19 +10,27 @@ import com.samsung.magnet.MagnetManager;
 
 import android.os.Bundle;
 import android.app.Activity;
+import android.content.Context;
 import android.view.Menu;
 import android.view.View;
+import android.view.inputmethod.InputMethodManager;
+import android.widget.ArrayAdapter;
 import android.widget.Button;
+import android.widget.EditText;
+import android.widget.ListView;
 import android.widget.Toast;
 
 public class MagnetTestActivity extends Activity {
 	// #1. get instance
 	MagnetManager mMagnet = MagnetManager.getInstance(this);
 	IMagnetChannel channelInst;
+	ArrayAdapter<String> adapter2;
+	EditText searchEditText;
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
+		setContentView(R.layout.activity_magnet_test);
 
 		String mMyTempDirectory = "/data/anr/";
 		// #2. set some values before start
@@ -59,13 +68,13 @@ public class MagnetTestActivity extends Activity {
 
 		});
 
-		setContentView(R.layout.activity_magnet_test);
 		Button button = (Button) findViewById(R.id.button1);
 		button.setOnClickListener(new View.OnClickListener() {
 
 			@Override
 			public void onClick(View arg0) {
-				channelInst = mMagnet.joinChannel("com.samsung.test.TEST_CHANNEL",
+				channelInst = mMagnet.joinChannel(
+						"com.samsung.test.TEST_CHANNEL",
 						new IMagnetChannelListener() {
 
 							@Override
@@ -134,20 +143,17 @@ public class MagnetTestActivity extends Activity {
 							@Override
 							public void onDataReceived(String arg0,
 									String arg1, String arg2, byte[][] data) {
-								for(byte [] value:data)
+								if(data!=null&&data.length==2)
 								{
-									String string=new String(value);
-									
-									Toast.makeText(getApplicationContext(),
-											"Node data: " + string + " ",
-											Toast.LENGTH_LONG).show();
+									String name=new String(data[0]);
+									String string = new String(data[1]);
+									adapter2.add(name+":"+string);
 								}
+
 								// TODO Auto-generated method stub
 
 							}
 						});
-
-
 
 			}
 		});
@@ -157,18 +163,24 @@ public class MagnetTestActivity extends Activity {
 
 			@Override
 			public void onClick(View v) {
-				
+
 				if (channelInst != null) {
+
 					List<String> nodeList = channelInst.getJoinedNodeList();
 					if (nodeList != null) {
-						String allNodeName="";
-						for(String name:nodeList)
-						{
-							Toast.makeText(getApplicationContext(),
-									"Node Name: " + name + " ",
-									Toast.LENGTH_LONG).show();
-						}
-			
+
+						// #1. SEND QUIZ
+						EditText editText = (EditText) findViewById(R.id.editText1);
+						byte[][] payload = new byte[2][1];
+						payload[0] = "User".getBytes(); // Sender’s friendly
+														// name
+						payload[1] = editText.getText().toString().getBytes(); // Quiz
+						channelInst.sendDataToAll(
+								"com.samsung.test.TEST_CHANNEL", payload);
+						editText.setText("");
+						
+						//setEditTextFocus(false);
+
 					} else {
 						Toast.makeText(getApplicationContext(),
 								"nodeList==null  ", Toast.LENGTH_LONG).show();
@@ -177,18 +189,45 @@ public class MagnetTestActivity extends Activity {
 					Toast.makeText(getApplicationContext(),
 							"channelInst==null  ", Toast.LENGTH_LONG).show();
 				}
-				// #1. SEND QUIZ
-				
-				  byte [][] payload=new byte[2][]; 
-				  payload[0] = "James".getBytes(); // Sender’s friendly name 
-				  payload[1] = "What is GNU".getBytes(); // Quiz
-				  channelInst.sendDataToAll("com.samsung.test.TEST_CHANNEL", payload);
-				 
+
 				// TODO Auto-generated method stub
 
 			}
 		});
 
+		ListView listView = (ListView) findViewById(R.id.listview);
+		ArrayList<String> list = new ArrayList<String>();
+
+		adapter2 = new ArrayAdapter<String>(this,
+				android.R.layout.simple_list_item_1, list);
+		listView.setAdapter(adapter2);
+		listView.setTranscriptMode(ListView.TRANSCRIPT_MODE_ALWAYS_SCROLL);
+		listView.setStackFromBottom(true);
+		/*
+		 searchEditText=(EditText)findViewById(R.id.editText1);
+		 searchEditText.setOnFocusChangeListener(new View.OnFocusChangeListener()
+	        {
+	            @Override
+	            public void onFocusChange(View v, boolean hasFocus)
+	            {
+	                if (v == searchEditText)
+	                {
+	                    if (hasFocus)
+	                    {
+	                        //open keyboard
+	                        ((InputMethodManager) getApplicationContext().getSystemService(Context.INPUT_METHOD_SERVICE)).showSoftInput(searchEditText,
+	                                InputMethodManager.SHOW_FORCED);
+
+	                    }
+	                    else
+	                    { //close keyboard
+	                        ((InputMethodManager) getApplicationContext().getSystemService(Context.INPUT_METHOD_SERVICE)).hideSoftInputFromWindow(
+	                                searchEditText.getWindowToken(), 0);
+	                    }
+	                }
+	            }
+	        });*/
+	
 	}
 
 	@Override
@@ -209,4 +248,16 @@ public class MagnetTestActivity extends Activity {
 		super.onDestroy();
 	}
 
+	public void setEditTextFocus(boolean isFocused)
+	{
+		EditText searchEditText=(EditText)findViewById(R.id.editText1);
+	    searchEditText.setCursorVisible(isFocused);
+	    searchEditText.setFocusable(isFocused);
+	    searchEditText.setFocusableInTouchMode(isFocused);
+
+	    if (isFocused)
+	    {
+	        searchEditText.requestFocus();
+	    }
+	}
 }
