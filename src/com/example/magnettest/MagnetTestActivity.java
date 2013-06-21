@@ -47,6 +47,27 @@ public class MagnetTestActivity extends Activity implements OnClickListener {
 
     final String TAG = "MagnetTestActivity";
 
+    void startDataReceiverService() {
+
+        intent = new Intent(this, DataReceiverService.class);
+        startService(intent);
+        if (intent != null) {
+            bindService(intent, serviceConnection, BIND_AUTO_CREATE);
+        } else {
+            Toast.makeText(MagnetTestActivity.this, "First Satrt service to bind.",
+                    Toast.LENGTH_LONG).show();
+        }
+        if (localservice != null) {
+           // showNetworkInterFace();
+            localservice.joinChannel();
+            Toast.makeText(MagnetTestActivity.this, "localservice start.",
+                    Toast.LENGTH_LONG).show();
+        }
+        else{
+            
+        }
+    }
+
     void showHostAddress() {
         try {
             // String address=InetAddress.getLocalHost().getHostAddress();
@@ -110,7 +131,10 @@ public class MagnetTestActivity extends Activity implements OnClickListener {
         findViewById(R.id.unbind).setOnClickListener(this);
         findViewById(R.id.button1).setOnClickListener(this);
         findViewById(R.id.button2).setOnClickListener(this);
+        findViewById(R.id.play).setOnClickListener(this);
+        findViewById(R.id.send_file).setOnClickListener(this);
 
+        startDataReceiverService();
     }
 
     @Override
@@ -130,31 +154,31 @@ public class MagnetTestActivity extends Activity implements OnClickListener {
     public void onClick(View v) {
         switch (v.getId()) {
             case R.id.start:
-                intent = new Intent(this, DataReceiverService.class);
-                startService(intent);
+
+                localservice.startRecord();
                 break;
             case R.id.stop:
-                intent = new Intent(this, DataReceiverService.class);
-                stopService(intent);
+                localservice.stopRecord();
+               // intent = new Intent(this, DataReceiverService.class);
+               // stopService(intent);
                 break;
             case R.id.button1:
-               // adapter2.add(localservice.getService());
-                showNetworkInterFace() ;
+                // adapter2.add(localservice.getService());
                 localservice.joinChannel();
+                Toast.makeText(MagnetTestActivity.this, "localservice start.",
+                        Toast.LENGTH_LONG).show();
+
                 break;
             case R.id.button2:
+                
                 EditText editText = (EditText)findViewById(R.id.editText1); // name
                 String data = editText.getText().toString(); // Quiz
                 localservice.sendMessage("User", data);
                 editText.setText("");
+
                 break;
             case R.id.bind:
-                if (intent != null) {
-                    bindService(intent, serviceConnection, BIND_AUTO_CREATE);
-                } else {
-                    Toast.makeText(MagnetTestActivity.this, "First Satrt service to bind.",
-                            Toast.LENGTH_LONG).show();
-                }
+
                 break;
             case R.id.unbind:
                 if (intent != null) {
@@ -164,6 +188,12 @@ public class MagnetTestActivity extends Activity implements OnClickListener {
                     Toast.makeText(MagnetTestActivity.this, "First Satrt bind to UnBind.",
                             Toast.LENGTH_LONG).show();
                 }
+                break;
+            case R.id.play:
+                localservice.playRecord();
+                break;
+            case R.id.send_file:
+                localservice.sendRecordedFile();
                 break;
         }
 

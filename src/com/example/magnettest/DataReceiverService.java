@@ -1,6 +1,14 @@
 
 package com.example.magnettest;
 
+import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.util.Calendar;
 import java.util.List;
 
@@ -15,12 +23,17 @@ import android.app.AlarmManager;
 import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Intent;
+import android.media.AudioFormat;
+import android.media.AudioManager;
+import android.media.AudioRecord;
+import android.media.AudioTrack;
+import android.media.MediaRecorder;
 import android.os.Binder;
+import android.os.Environment;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Message;
 import android.util.Log;
-import android.widget.EditText;
 import android.widget.Toast;
 
 public class DataReceiverService extends Service {
@@ -86,6 +99,7 @@ public class DataReceiverService extends Service {
     }
 
     void joinChannel() {
+       
         channelInst = mMagnet.joinChannel(PUBLIC_CHANNEL_NAME, new IMagnetChannelListener() {
 
             @Override
@@ -103,7 +117,7 @@ public class DataReceiverService extends Service {
             @Override
             public void onFileWillReceive(String arg0, String arg1, String arg2, String arg3,
                     String arg4, String arg5, long arg6) {
-                // TODO Auto-generated method stub
+                Toast.makeText(DataReceiverService.this,"onFileWillReceive"+ arg0 + ":" + arg2, 300).show();
 
             }
 
@@ -115,11 +129,13 @@ public class DataReceiverService extends Service {
             }
 
             @Override
-            public void onFileReceived(String arg0, String arg1, String arg2, String arg3,
-                    String arg4, String arg5, long arg6, String arg7) {
-                // TODO Auto-generated method stub
+            public void onFileReceived(String fromNode, String fileName, String  hash, String fileType,
+                    String exchangeId, String arg5, long fileSize, String tmpFilePath) {
+                Toast.makeText(DataReceiverService.this,"onFileWillReceive"+  tmpFilePath+ ":" + arg5, 300).show();
 
             }
+            
+
 
             @Override
             public void onFileFailed(String arg0, String arg1, String arg2, String arg3,
@@ -191,6 +207,28 @@ public class DataReceiverService extends Service {
 
     }
 
+    void sendRecordedFile()
+    {
+        if (channelInst != null) {
+
+            List<String> nodeList = channelInst.getJoinedNodeList();
+            if (nodeList != null) {
+
+              for(String node:nodeList){
+                channelInst.sendFile(node, PUBLIC_CHANNEL_NAME, recordingFile.getPath(), 60*60*1000);
+              }
+
+
+            } else {
+                Toast.makeText(getApplicationContext(), "nodeList==null  ", Toast.LENGTH_LONG)
+                        .show();
+            }
+        } else {
+            Toast.makeText(getApplicationContext(), "channelInst==null  ", Toast.LENGTH_LONG)
+                    .show();
+        }
+       
+    }
     void destroyMagnet() {
         // #2. leave channel
         mMagnet.leaveChannel(PUBLIC_CHANNEL_NAME);
@@ -237,29 +275,128 @@ public class DataReceiverService extends Service {
         Toast.makeText(this, "Service start", 300).show();
         initMagnet();
     }
-
+    
+    void startRecord()
+    {
+       
+        File path = new File(Environment.getExternalStorageDirectory().getAbsolutePath()
+                + "/audioTest");
+        path.mkdirs();
+        try {
+            recordingFile = File.createTempFile("recording", ".pcm", path);
+        } catch (IOException e) {
+            throw new RuntimeException("Couldn't create file on SD card", e);
+        }
+        RecordThread td = new RecordThread();
+        td.start(); 
+        Toast.makeText(this, "Start Record", 300).show();
+    }
+    void stopRecord()
+    {
+       
+        isRecording=false;
+       
+    }
+    void playRecord()
+    {
+        PlayThread td = new PlayThread();
+        td.start(); 
+        Toast.makeText(this, "Play Record", 300).show();
+        
+    }
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
 
-        Toast.makeText(this, "task perform in service", 300).show();
-        ThreadDemo td = new ThreadDemo();
-        td.start();
+
+        //td.start();
         //playAlarm();
+       
         return super.onStartCommand(intent, flags, startId);
     }
+    
+    int frequency = 11025, channelConfiguration = AudioFormat.CHANNEL_IN_MONO;
 
-    private class ThreadDemo extends Thread {
+    int audioEncoding = AudioFormat.ENCODING_PCM_16BIT;
+    File recordingFile;
+    private boolean isRecording;
+    private boolean isPlaying;
+    private class PlayThread extends Thread{
+        @Override
+        public void  run() {
+            super.run();
+            isPlaying = true;
+            int channelConfiguration=AudioFormat.CHANNEL_OUT_MONO;
+            int bufferSize = AudioTrack.getMinBufferSize(frequency, channelConfiguration,
+                    audioEncoding);
+            
+            short[] audiodata = new short[bufferSize / 4];
+
+            try {
+                DataInputStream dis = new DataInputStream(new BufferedInputStream(
+                        new FileInputStream(recordingFile)));
+                AudioTrack audioTrack = new AudioTrack(AudioManager.STREAM_MUSIC, frequency,
+                        channelConfiguration, audioEncoding, bufferSize, AudioTrack.MODE_STREAM);
+
+                audioTrack.play();
+                while (isPlaying && dis.available() > 0) {
+                    int i = 0;
+                    while (dis.available() > 0 && i < audiodata.length) {
+                        audiodata[i] = dis.readShort();
+                        i++;
+                    }
+                    audioTrack.write(audiodata, 0, audiodata.length);
+                }
+                dis.close();
+    
+            } catch (Throwable t) {
+                Log.e("AudioTrack", "Playback Failed");
+            }
+
+        }
+    }
+    private class RecordThread extends Thread {
+        
+
         @Override
         public void run() {
             super.run();
             try {
-                sleep(70 * 1000);
-                handler.sendEmptyMessage(0);
+
+                isRecording = true;
+                try {
+                    DataOutputStream dos = new DataOutputStream(new BufferedOutputStream(
+                            new FileOutputStream(recordingFile)));
+                    int bufferSize = AudioRecord.getMinBufferSize(frequency, channelConfiguration,
+                            audioEncoding);
+                    AudioRecord audioRecord = new AudioRecord(MediaRecorder.AudioSource.MIC, frequency,
+                            channelConfiguration, audioEncoding, bufferSize);
+
+                    short[] buffer = new short[bufferSize];
+                    audioRecord.startRecording();
+                    int r = 0;
+                    while (isRecording) {
+                        int bufferReadResult = audioRecord.read(buffer, 0, bufferSize);
+                        for (int i = 0; i < bufferReadResult; i++) {
+                            dos.writeShort(buffer[i]);
+                        }
+                        //publishProgress(new Integer(r));
+                        r++;
+                    }
+                    audioRecord.stop();
+                    Toast.makeText(getApplicationContext(), "Stop Record", 300).show();
+                    Log.e("AudioRecord", "Recording Stop");
+                    dos.close();
+                } catch (Throwable t) {
+                    Log.e("AudioRecord", "Recording Failed");
+                }
+
             } catch (Exception e) {
                 e.getMessage();
             }
         }
     }
+    
+
 
     private Handler handler = new Handler() {
         @Override

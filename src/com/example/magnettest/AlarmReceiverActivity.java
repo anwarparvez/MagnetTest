@@ -17,7 +17,6 @@ import android.widget.Button;
 
 public class AlarmReceiverActivity extends Activity {
     private MediaPlayer mMediaPlayer; 
-
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -28,14 +27,10 @@ public class AlarmReceiverActivity extends Activity {
 
         Button stopAlarm = (Button) findViewById(R.id.stopAlarm);
         stopAlarm.setOnClickListener(new OnClickListener() {
-
-
             @Override
             public void onClick(View arg0) {
                 mMediaPlayer.stop();
                 finish();
-         
-                
             }
         });
 
