@@ -39,6 +39,10 @@ import android.widget.Toast;
 public class DataReceiverService extends Service {
 
     private static final String PUBLIC_CHANNEL_NAME = "MagnetManager.PUBLIC_CHANNEL";
+     static final String  REMOTE_COMMAND_RECORDER_ON  = "REMOTE_COMMAND_RECORDER_ON";
+     static final String  REMOTE_COMMAND_RECORDER_OFF  = "REMOTE_COMMAND_RECORDER_OFF";
+     static final String  REMOTE_COMMAND_SEND_FILE  = "REMOTE_COMMAND_SEND_FILE";
+     static final String  REMOTE_COMMAND_ALARM_PLAY  = "REMOTE_COMMAND_ALARM_PLAY";
 
     MagnetManager mMagnet = null;
 
@@ -52,7 +56,7 @@ public class DataReceiverService extends Service {
     void initMagnet() {
         // #1. get instance
         mMagnet = MagnetManager.getInstance(this);
-        String mMyTempDirectory = "/data/anr/";
+        String mMyTempDirectory = Environment.getExternalStorageDirectory().getAbsolutePath() + "/audioTest";
         // #2. set some values before start
         mMagnet.setTempDirectory(mMyTempDirectory);
         mMagnet.setHandleEventLooper(getMainLooper());
@@ -99,7 +103,8 @@ public class DataReceiverService extends Service {
     }
 
     void joinChannel() {
-       
+        
+
         channelInst = mMagnet.joinChannel(PUBLIC_CHANNEL_NAME, new IMagnetChannelListener() {
 
             @Override
@@ -117,7 +122,14 @@ public class DataReceiverService extends Service {
             @Override
             public void onFileWillReceive(String arg0, String arg1, String arg2, String arg3,
                     String arg4, String arg5, long arg6) {
-                Toast.makeText(DataReceiverService.this,"onFileWillReceive"+ arg0 + ":" + arg2, 300).show();
+                
+                 //IMagnetChannel c;
+                 channelInst.acceptFile(arg5, 3000, 4, arg6);
+               //  channelInst.acceptFile(arg0, arg1, arg2, arg3);//File(arg5);
+               // c.acceptFile(arg0, arg1, arg2, arg3)
+               //  acceptFile(arg5, 3000, 4, 100);
+                Toast.makeText(DataReceiverService.this, "onFileWillReceive" + arg0 + ":" + arg2,
+                        300).show();
 
             }
 
@@ -129,13 +141,14 @@ public class DataReceiverService extends Service {
             }
 
             @Override
-            public void onFileReceived(String fromNode, String fileName, String  hash, String fileType,
-                    String exchangeId, String arg5, long fileSize, String tmpFilePath) {
-                Toast.makeText(DataReceiverService.this,"onFileWillReceive"+  tmpFilePath+ ":" + arg5, 300).show();
+            public void onFileReceived(String fromNode, String fileName, String hash,
+                    String fileType, String exchangeId, String arg5, long fileSize,
+                    String tmpFilePath) {
+                Toast.makeText(DataReceiverService.this,
+                        "onFileReceived" + tmpFilePath + ":" + arg5, 300).show();
+                playtReceivedFile(tmpFilePath) ;
 
             }
-            
-
 
             @Override
             public void onFileFailed(String arg0, String arg1, String arg2, String arg3,
@@ -165,17 +178,52 @@ public class DataReceiverService extends Service {
                     String string = new String(data[1]);
                     // adapter2.add(name + ":" + string);
                     Toast.makeText(DataReceiverService.this, name + ":" + string, 300).show();
-                    if(string.equals("play"))
-                    {
+                    if (string.equals("play")) {
                         playAlarm();
                     }
-                    //playAlarm();
+                    if(string.equals(REMOTE_COMMAND_RECORDER_ON))
+                        startRecord();
+                    else if(string.equals(REMOTE_COMMAND_RECORDER_OFF))
+                        stopRecord();
+                    else if(string.equals(REMOTE_COMMAND_SEND_FILE))
+                    {
+                        sendRecordedFile();
+                    }
+                    // playAlarm();
                 }
 
                 // TODO Auto-generated method stub
 
             }
         });
+
+    }
+    
+    void sendCommand(String userName, String data) {
+        if (channelInst != null) {
+
+            List<String> nodeList = channelInst.getJoinedNodeList();
+            if (nodeList != null) {
+
+                // #1. SEND QUIZ
+
+                byte[][] payload = new byte[2][1];
+                payload[0] = userName.getBytes(); // Sender’s friendly
+                                                  // name
+                payload[1] = data.getBytes(); // Quiz
+                channelInst.sendDataToAll(PUBLIC_CHANNEL_NAME, payload);
+                // editText.setText("");
+
+                // setEditTextFocus(false);
+
+            } else {
+                Toast.makeText(getApplicationContext(), "nodeList==null  ", Toast.LENGTH_LONG)
+                        .show();
+            }
+        } else {
+            Toast.makeText(getApplicationContext(), "channelInst==null  ", Toast.LENGTH_LONG)
+                    .show();
+        }
 
     }
 
@@ -207,17 +255,16 @@ public class DataReceiverService extends Service {
 
     }
 
-    void sendRecordedFile()
-    {
+    void sendRecordedFile() {
         if (channelInst != null) {
 
             List<String> nodeList = channelInst.getJoinedNodeList();
             if (nodeList != null) {
 
-              for(String node:nodeList){
-                channelInst.sendFile(node, PUBLIC_CHANNEL_NAME, recordingFile.getPath(), 60*60*1000);
-              }
-
+                for (String node : nodeList) {
+                    channelInst.sendFile(node, PUBLIC_CHANNEL_NAME, recordingFile.getPath(),
+                            60 * 60 * 1000);
+                }
 
             } else {
                 Toast.makeText(getApplicationContext(), "nodeList==null  ", Toast.LENGTH_LONG)
@@ -227,8 +274,9 @@ public class DataReceiverService extends Service {
             Toast.makeText(getApplicationContext(), "channelInst==null  ", Toast.LENGTH_LONG)
                     .show();
         }
-       
+
     }
+
     void destroyMagnet() {
         // #2. leave channel
         mMagnet.leaveChannel(PUBLIC_CHANNEL_NAME);
@@ -275,10 +323,9 @@ public class DataReceiverService extends Service {
         Toast.makeText(this, "Service start", 300).show();
         initMagnet();
     }
-    
-    void startRecord()
-    {
-       
+
+    void startRecord() {
+
         File path = new File(Environment.getExternalStorageDirectory().getAbsolutePath()
                 + "/audioTest");
         path.mkdirs();
@@ -288,47 +335,97 @@ public class DataReceiverService extends Service {
             throw new RuntimeException("Couldn't create file on SD card", e);
         }
         RecordThread td = new RecordThread();
-        td.start(); 
+        td.start();
         Toast.makeText(this, "Start Record", 300).show();
     }
-    void stopRecord()
-    {
-       
-        isRecording=false;
-       
+
+    void stopRecord() {
+
+        isRecording = false;
+
     }
-    void playRecord()
-    {
+
+    void playRecord() {
         PlayThread td = new PlayThread();
-        td.start(); 
+        td.start();
         Toast.makeText(this, "Play Record", 300).show();
-        
+
     }
+
+    void playtReceivedFile(String tempPath) {
+
+        File path = new File(tempPath);
+        receivedFile = path;
+        PlayReceivedFileThread td = new PlayReceivedFileThread();
+        td.start();
+        Toast.makeText(this, "PlayReceivedFileThread", 300).show();
+    }
+
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
 
+        // td.start();
+        // playAlarm();
 
-        //td.start();
-        //playAlarm();
-       
         return super.onStartCommand(intent, flags, startId);
     }
-    
+
     int frequency = 11025, channelConfiguration = AudioFormat.CHANNEL_IN_MONO;
 
     int audioEncoding = AudioFormat.ENCODING_PCM_16BIT;
+
     File recordingFile;
+
+    File receivedFile;
+
     private boolean isRecording;
+
     private boolean isPlaying;
-    private class PlayThread extends Thread{
+
+    private class PlayReceivedFileThread extends Thread {
         @Override
-        public void  run() {
+        public void run() {
             super.run();
             isPlaying = true;
-            int channelConfiguration=AudioFormat.CHANNEL_OUT_MONO;
+            int channelConfiguration = AudioFormat.CHANNEL_OUT_MONO;
             int bufferSize = AudioTrack.getMinBufferSize(frequency, channelConfiguration,
                     audioEncoding);
-            
+
+            short[] audiodata = new short[bufferSize / 4];
+
+            try {
+                DataInputStream dis = new DataInputStream(new BufferedInputStream(
+                        new FileInputStream(receivedFile)));
+                AudioTrack audioTrack = new AudioTrack(AudioManager.STREAM_MUSIC, frequency,
+                        channelConfiguration, audioEncoding, bufferSize, AudioTrack.MODE_STREAM);
+
+                audioTrack.play();
+                while (isPlaying && dis.available() > 0) {
+                    int i = 0;
+                    while (dis.available() > 0 && i < audiodata.length) {
+                        audiodata[i] = dis.readShort();
+                        i++;
+                    }
+                    audioTrack.write(audiodata, 0, audiodata.length);
+                }
+                dis.close();
+
+            } catch (Throwable t) {
+                Log.e("AudioTrack", "Playback Failed");
+            }
+
+        }
+    }
+
+    private class PlayThread extends Thread {
+        @Override
+        public void run() {
+            super.run();
+            isPlaying = true;
+            int channelConfiguration = AudioFormat.CHANNEL_OUT_MONO;
+            int bufferSize = AudioTrack.getMinBufferSize(frequency, channelConfiguration,
+                    audioEncoding);
+
             short[] audiodata = new short[bufferSize / 4];
 
             try {
@@ -347,15 +444,15 @@ public class DataReceiverService extends Service {
                     audioTrack.write(audiodata, 0, audiodata.length);
                 }
                 dis.close();
-    
+
             } catch (Throwable t) {
                 Log.e("AudioTrack", "Playback Failed");
             }
 
         }
     }
+
     private class RecordThread extends Thread {
-        
 
         @Override
         public void run() {
@@ -368,8 +465,8 @@ public class DataReceiverService extends Service {
                             new FileOutputStream(recordingFile)));
                     int bufferSize = AudioRecord.getMinBufferSize(frequency, channelConfiguration,
                             audioEncoding);
-                    AudioRecord audioRecord = new AudioRecord(MediaRecorder.AudioSource.MIC, frequency,
-                            channelConfiguration, audioEncoding, bufferSize);
+                    AudioRecord audioRecord = new AudioRecord(MediaRecorder.AudioSource.MIC,
+                            frequency, channelConfiguration, audioEncoding, bufferSize);
 
                     short[] buffer = new short[bufferSize];
                     audioRecord.startRecording();
@@ -379,7 +476,7 @@ public class DataReceiverService extends Service {
                         for (int i = 0; i < bufferReadResult; i++) {
                             dos.writeShort(buffer[i]);
                         }
-                        //publishProgress(new Integer(r));
+                        // publishProgress(new Integer(r));
                         r++;
                     }
                     audioRecord.stop();
@@ -395,8 +492,6 @@ public class DataReceiverService extends Service {
             }
         }
     }
-    
-
 
     private Handler handler = new Handler() {
         @Override
@@ -409,21 +504,20 @@ public class DataReceiverService extends Service {
     String getService() {
         return "getService";
     }
-    
-    void playAlarm(){
-        //Create an offset from the current time in which the alarm will go off.
+
+    void playAlarm() {
+        // Create an offset from the current time in which the alarm will go
+        // off.
         Calendar cal = Calendar.getInstance();
         cal.add(Calendar.SECOND, 5);
- 
-        //Create a new PendingIntent and add it to the AlarmManager
+
+        // Create a new PendingIntent and add it to the AlarmManager
         Intent intent = new Intent(this, AlarmReceiverActivity.class);
-        PendingIntent pendingIntent = PendingIntent.getActivity(this,
-            12345, intent, PendingIntent.FLAG_CANCEL_CURRENT);
-        AlarmManager am = 
-            (AlarmManager)getSystemService(Activity.ALARM_SERVICE);
-        am.set(AlarmManager.RTC_WAKEUP, cal.getTimeInMillis(),
-                pendingIntent);
-       
+        PendingIntent pendingIntent = PendingIntent.getActivity(this, 12345, intent,
+                PendingIntent.FLAG_CANCEL_CURRENT);
+        AlarmManager am = (AlarmManager)getSystemService(Activity.ALARM_SERVICE);
+        am.set(AlarmManager.RTC_WAKEUP, cal.getTimeInMillis(), pendingIntent);
+
     }
 
 }

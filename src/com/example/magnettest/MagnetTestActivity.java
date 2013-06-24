@@ -133,7 +133,6 @@ public class MagnetTestActivity extends Activity implements OnClickListener {
         findViewById(R.id.button2).setOnClickListener(this);
         findViewById(R.id.play).setOnClickListener(this);
         findViewById(R.id.send_file).setOnClickListener(this);
-
         startDataReceiverService();
     }
 
@@ -154,20 +153,14 @@ public class MagnetTestActivity extends Activity implements OnClickListener {
     public void onClick(View v) {
         switch (v.getId()) {
             case R.id.start:
-
-                localservice.startRecord();
+                localservice.sendCommand("A:", DataReceiverService.REMOTE_COMMAND_RECORDER_ON);
                 break;
             case R.id.stop:
-                localservice.stopRecord();
-               // intent = new Intent(this, DataReceiverService.class);
-               // stopService(intent);
+                localservice.sendCommand("A:", DataReceiverService.REMOTE_COMMAND_RECORDER_OFF);
                 break;
             case R.id.button1:
                 // adapter2.add(localservice.getService());
                 localservice.joinChannel();
-                Toast.makeText(MagnetTestActivity.this, "localservice start.",
-                        Toast.LENGTH_LONG).show();
-
                 break;
             case R.id.button2:
                 
@@ -193,7 +186,8 @@ public class MagnetTestActivity extends Activity implements OnClickListener {
                 localservice.playRecord();
                 break;
             case R.id.send_file:
-                localservice.sendRecordedFile();
+                localservice.sendCommand("A:", DataReceiverService.REMOTE_COMMAND_SEND_FILE);
+               // localservice.sendRecordedFile();
                 break;
         }
 
